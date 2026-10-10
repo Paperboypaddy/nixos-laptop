@@ -53,6 +53,8 @@
     foot wmenu brightnessctl powertop librewolf kitty git gh mako libnotify bitwarden-desktop polkit_gnome
   ];
   security.polkit.enable =true;
+  services.gnome.gnome-keyring.enable = true;
+  security.pam.services.greetd.enableGnomeKeyring = true;
   environment.pathsToLink = [ "/libexec" ];
 
 
