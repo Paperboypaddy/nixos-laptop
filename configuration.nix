@@ -61,6 +61,24 @@
 
     # network tools
     traceroute nmap tcpdump iperf3 bind whois ethtool arp-scan
+
+    # Sway Config Updates
+    (pkgs.writeShellScriptBin "config-update" (builtins.readFile ./sway/update.sh))
+    (pkgs.writeShellScriptBin "config-update-check" (builtins.readFile ./sway/update-check.sh))
+    (pkgs.writeShellScriptBin "config-update-status" (builtins.readFile ./sway/update-status.sh))
+  ];
+
+  # Sway: /etc/sway/config is used when there's no ~/.config/sway
+  environment.etc."sway/config".source = ./sway/config;
+  
+  # Waybar also reads system-wide config from /etc/xdg/waybar
+  environment.etc."xdg/waybar/config.jsonc".source = ./waybar/config.jsonc;
+  environment.etc."xdg/waybar/style.css".source = ./waybar/style.css;
+
+  # Tmp files - Librewolf
+  systemd.tmpfiles.rules = [
+    "d /home/paper/.librewolf 0700 paper users -"
+    "L+ /home/paper/.librewolf/librewolf.overrides.cfg - - - - ${./librewolf.overrides.cfg}"
   ];
 
   programs.mtr.enable = true;
