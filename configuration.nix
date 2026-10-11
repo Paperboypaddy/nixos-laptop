@@ -30,7 +30,7 @@
   # Users
   users.users.paper = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "networkmanager" "video" ]; # Enable ‘sudo’ for the user.
+    extraGroups = [ "wheel" "networkmanager" "video" "wireshark" ];
     packages = with pkgs; [
       tree
     ];
@@ -49,9 +49,23 @@
   fonts.packages = [ pkgs.dejavu_fonts ];
   programs.fish.enable = true;
   users.users.paper.shell = pkgs.fish;
+
   environment.systemPackages = with pkgs; [
-    foot wmenu brightnessctl powertop librewolf kitty git gh mako libnotify bitwarden-desktop polkit_gnome pkgs.wireguard-tools
+    # desktop and apps
+    foot wmenu brightnessctl powertop librewolf kitty
+    mako libnotify bitwarden-desktop polkit_gnome
+    # config and dev
+    git gh wireguard-tools
+    # network tools
+    traceroute nmap tcpdump iperf3 bind whois ethtool arp-scan
   ];
+
+  programs.mtr.enable = true;
+  programs.wireshark = {
+    enable = true;
+    package = pkgs.wireshark-cli;   # tshark only, no Qt GUI
+  };
+
   security.polkit.enable =true;
   services.gnome.gnome-keyring.enable = true;
   security.pam.services.greetd.enableGnomeKeyring = true;
