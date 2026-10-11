@@ -44,7 +44,7 @@
   services.greetd = {
     enable = true;
     settings.default_session.command =
-      "${pkgs.greetd.tuigreet}/bin/tuigreet --cmd sway";
+      "${pkgs.tuigreet}/bin/tuigreet --cmd sway";
   };
   fonts.packages = [ pkgs.dejavu_fonts pkgs.font-awesome ];
   programs.fish.enable = true;
@@ -55,23 +55,17 @@
     foot wmenu brightnessctl powertop librewolf kitty
     mako libnotify bitwarden-desktop polkit_gnome
     waybar networkmanagerapplet adwaita-icon-theme
-
     # config and dev
     git gh wireguard-tools
-
     # network tools
     traceroute nmap tcpdump iperf3 bind whois ethtool arp-scan
-
-    # Sway Config Updates
-    (pkgs.writeShellScriptBin "config-update" (builtins.readFile ./sway/update.sh))
-    (pkgs.writeShellScriptBin "config-update-check" (builtins.readFile ./sway/update-check.sh))
-    (pkgs.writeShellScriptBin "config-update-status" (builtins.readFile ./sway/update-status.sh))
+    # update helpers (the scripts live in the repo)
+    (writeShellScriptBin "config-update" (builtins.readFile ./sway/update.sh))
+    (writeShellScriptBin "config-update-check" (builtins.readFile ./sway/update-check.sh))
+    (writeShellScriptBin "config-update-status" (builtins.readFile ./sway/update-status.sh))
   ];
 
-  # Sway: /etc/sway/config is used when there's no ~/.config/sway
   environment.etc."sway/config".source = ./sway/config;
-  
-  # Waybar also reads system-wide config from /etc/xdg/waybar
   environment.etc."xdg/waybar/config.jsonc".source = ./waybar/config.jsonc;
   environment.etc."xdg/waybar/style.css".source = ./waybar/style.css;
 
