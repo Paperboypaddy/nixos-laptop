@@ -88,6 +88,39 @@
     autostart = true;                            # connect only when needed
   };
 
+  # Stop Linux from answering ARP for one interface's IP on the other, which
+  # confuses the router when Ethernet and Wi-Fi are on the same network.
+  boot.kernel.sysctl = {
+    "net.ipv4.conf.all.arp_ignore" = 1;
+    "net.ipv4.conf.all.arp_announce" = 2;
+  };
+
+  # Reverse-path filtering: "loose" accepts a packet if its source is reachable
+  # via ANY interface, instead of only the one it arrived on. Needed while
+  # Ethernet and Wi-Fi share a subnet, because replies can arrive on the "other"
+  # link and would be silently dropped. Slightly weaker anti-spoofing than the
+  # default, which is fine on a laptop behind a NAT router.
+  networking.firewall.checkReversePath = "loose";
+  networking.networkmanager.dispatcherScripts = [{
+    type = "basic";
+    source = pkgs.writeShellScript "wifi-off-when-same-lan" ''
+      nmcli=${pkgs.networkmanager}/bin/nmcli
+      flag=/run/wifi-off-by-eth
+      [ "$($nmcli -g GENERAL.TYPE device show "$1")" = ethernet ] || exit 0
+      case "$2" in
+        up)
+          wifi_dev=$($nmcli -t -f DEVICE,TYPE device | ${pkgs.gawk}/bin/awk -F: '$2=="wifi"{print $1; exit}')
+          eth_gw=$($nmcli -g IP4.GATEWAY device show "$1")
+          wifi_gw=$($nmcli -g IP4.GATEWAY device show "$wifi_dev")
+          if [ -n "$eth_gw" ] && [ "$eth_gw" = "$wifi_gw" ]; then
+            touch "$flag"; $nmcli radio wifi off
+          fi ;;
+        down)
+          [ -e "$flag" ] && rm "$flag" && $nmcli radio wifi on ;;
+      esac
+    '';
+  }];
+
   # power
   services.power-profiles-daemon.enable = false;
   services.thermald.enable = true;
