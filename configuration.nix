@@ -50,7 +50,7 @@
   programs.fish.enable = true;
   users.users.paper.shell = pkgs.fish;
   environment.systemPackages = with pkgs; [
-    foot wmenu brightnessctl powertop librewolf kitty git gh mako libnotify bitwarden-desktop polkit_gnome
+    foot wmenu brightnessctl powertop librewolf kitty git gh mako libnotify bitwarden-desktop polkit_gnome pkgs.wireguard-tools
   ];
   security.polkit.enable =true;
   services.gnome.gnome-keyring.enable = true;
@@ -66,6 +66,12 @@
       core.no_confirmation = true;
       video.device_path = "/dev/video2";
     };
+  };
+
+  #wireguard config
+  networking.wg-quick.interfaces.homelab = {
+    configFile = "/etc/wireguard/homelab.conf";   # lives outside the repo
+    autostart = false;                            # connect only when needed
   };
 
   # power
