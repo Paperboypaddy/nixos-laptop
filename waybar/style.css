@@ -1,0 +1,36 @@
+* {
+  font-family: "DejaVu Sans", "Font Awesome 6 Free", "Font Awesome 6 Brands";
+  font-size: 13px;
+  border: none;
+  border-radius: 0;
+  min-height: 0;
+}
+
+window#waybar {
+  background: #1e1e2e;
+  color: #cdd6f4;
+}
+
+#workspaces button {
+  padding: 0 8px;
+  color: #cdd6f4;
+  background: transparent;
+}
+
+#workspaces button.focused {
+  background: #45475a;
+}
+
+#clock,
+#battery,
+#tray,
+#custom-updates,
+#custom-browser,
+#custom-terminal,
+#custom-bitwarden {
+  padding: 0 10px;
+}
+
+#battery.warning:not(.charging) { color: #f9e2af; }
+#battery.critical:not(.charging) { color: #f38ba8; }
+#custom-updates.pending { color: #a6e3a1; }

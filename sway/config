@@ -224,19 +224,6 @@ bindsym $mod+r mode "resize"
 # Status Bar:
 #
 # Read `man 5 sway-bar` for more information about this section.
-bar {
-    position top
-
-    # When the status_command prints a new line to stdout, swaybar updates.
-    # The default just shows the current date and time.
-    status_command ~/.config/sway/status.sh
-
-    colors {
-        statusline #ffffff
-        background #323232
-        inactive_workspace #32323200 #32323200 #5c5c5c
-    }
-}
 
 include /etc/sway/config.d/*
 bindsym $mod+Shift+b exec librewolf
@@ -248,5 +235,9 @@ input type:pointer natural_scroll disabled
 input type:touchpad tap enabled
 exec /run/current-system/sw/libexec/polkit-gnome-authentication-agent-1
 exec mako
-exec ~/.config/sway/update-check.sh
-bindsym $mod+Shift+u exec foot -e ~/.config/sway/update.sh
+exec config-update-check
+bindsym $mod+Shift+u exec foot -e config-update
+exec nm-applet --indicator
+bar {
+    swaybar_command waybar
+}

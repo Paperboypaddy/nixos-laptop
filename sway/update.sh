@@ -38,6 +38,7 @@ now=$(printf '%s\n' "$(readlink -f /run/current-system/sw/bin/sway)" "$(readlink
 [ -f "$SNAP" ] && [ "$now" != "$(cat "$SNAP")" ] && relog=1
 [ "$(id -Gn | tr ' ' '\n' | sort)" != "$(id -Gn "$USER" | tr ' ' '\n' | sort)" ] && relog=1
 git diff --name-only "$old" HEAD | grep -q '^sway/' && reload=1
+git diff --name-only "$old" HEAD | grep -q '^waybar/' && pkill -SIGUSR2 waybar
 
 echo
 if [ $reboot = 1 ]; then

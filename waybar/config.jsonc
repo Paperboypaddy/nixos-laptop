@@ -1,0 +1,41 @@
+// Waybar config for nixos-laptop. Icons need the font-awesome package.
+{
+  "layer": "top",
+  "position": "top",
+  "height": 28,
+
+  "modules-left": ["sway/workspaces", "custom/browser", "custom/terminal", "custom/bitwarden"],
+  "modules-center": ["clock"],
+  // The Wi-Fi/network picker is the nm-applet icon, which shows up in the tray.
+  "modules-right": ["custom/updates", "battery", "tray"],
+
+  "sway/workspaces": { "disable-scroll": true, "format": "{name}" },
+
+  // Launcher icons. kitty starts your default shell (fish).
+  "custom/browser":   { "format": "\uf0ac", "tooltip": false, "on-click": "librewolf" },
+  "custom/terminal":  { "format": "\uf120", "tooltip": false, "on-click": "kitty" },
+  "custom/bitwarden": { "format": "\uf084", "tooltip": false, "on-click": "bitwarden-desktop" },
+
+  // Shows an icon only when the config repo has updates waiting.
+  "custom/updates": {
+    "exec": "config-update-status",
+    "return-type": "json",
+    "interval": 300,
+    "format": "{icon}",
+    "format-icons": { "pending": "\uf019", "none": "" },
+    "on-click": "kitty -e config-update"
+  },
+
+  "battery": {
+    "interval": 30,
+    "states": { "warning": 30, "critical": 15 },
+    "format": "{icon} {capacity}%",
+    "format-charging": "\uf0e7 {capacity}%",
+    "format-full": "\uf240 {capacity}%",
+    "format-icons": ["\uf244", "\uf243", "\uf242", "\uf241", "\uf240"]
+  },
+
+  "clock": { "interval": 30, "format": "{:%a %b %d  %H:%M}" },
+
+  "tray": { "icon-size": 16, "spacing": 8 }
+}
