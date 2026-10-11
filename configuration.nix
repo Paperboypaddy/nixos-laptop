@@ -46,7 +46,7 @@
     settings.default_session.command =
       "${pkgs.greetd.tuigreet}/bin/tuigreet --cmd sway";
   };
-  fonts.packages = [ pkgs.dejavu_fonts ];
+  fonts.packages = [ pkgs.dejavu_fonts pkgs.font-awesome ];
   programs.fish.enable = true;
   users.users.paper.shell = pkgs.fish;
 
@@ -54,8 +54,11 @@
     # desktop and apps
     foot wmenu brightnessctl powertop librewolf kitty
     mako libnotify bitwarden-desktop polkit_gnome
+    waybar networkmanagerapplet adwaita-icon-theme
+
     # config and dev
     git gh wireguard-tools
+
     # network tools
     traceroute nmap tcpdump iperf3 bind whois ethtool arp-scan
   ];
