@@ -71,7 +71,7 @@
   #wireguard config
   networking.wg-quick.interfaces.homelab = {
     configFile = "/etc/wireguard/homelab.conf";   # lives outside the repo
-    autostart = false;                            # connect only when needed
+    autostart = true;                            # connect only when needed
   };
 
   # power
