@@ -14,9 +14,9 @@ let
   # Waybar polls this helper for the tunnel's current state.
   wgStatus = pkgs.writeShellScriptBin "wg-status" ''
     if ${pkgs.systemd}/bin/systemctl is-active --quiet wg-quick-homelab.service; then
-      printf '%s\\n' '{"text":"","class":"connected","tooltip":"WireGuard: connected"}'
+      printf '%s\n' '{"text":"","class":"connected","tooltip":"WireGuard: connected"}'
     else
-      printf '%s\\n' '{"text":"","class":"disconnected","tooltip":"WireGuard: disconnected"}'
+      printf '%s\n' '{"text":"","class":"disconnected","tooltip":"WireGuard: disconnected"}'
     fi
   '';
 in
