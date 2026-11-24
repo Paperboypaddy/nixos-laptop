@@ -65,6 +65,9 @@ in
     (writeShellScriptBin "config-update" (builtins.readFile ./sway/update.sh))
     (writeShellScriptBin "config-update-check" (builtins.readFile ./sway/update-check.sh))
     (writeShellScriptBin "config-update-status" (builtins.readFile ./sway/update-status.sh))
+    (writeShellScriptBin "sway-session" ''
+      exec ${pkgs.python3}/bin/python3 ${./sway/session.py} "$@"
+    '')
     wgToggle
     wgStatus
   ];
