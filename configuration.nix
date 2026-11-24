@@ -1,16 +1,29 @@
-# Edit this configuration file to define what should be installed on
-# your system. Help is available in the configuration.nix(5) man page, on
-# https://search.nixos.org/options and in the NixOS manual (`nixos-help`).
-
 { config, lib, pkgs, ... }:
 
-{
-  imports =
-    [ # Include the results of the hardware scan.
-      ./hardware-configuration.nix
-    ];
+let
+  # This helper can only toggle the homelab WireGuard systemd unit.
+  wgToggle = pkgs.writeShellScriptBin "wg-toggle" ''
+    unit="wg-quick-homelab.service"
+    if ${pkgs.systemd}/bin/systemctl is-active --quiet "$unit"; then
+      exec ${pkgs.systemd}/bin/systemctl stop "$unit"
+    else
+      exec ${pkgs.systemd}/bin/systemctl start "$unit"
+    fi
+  '';
 
-  # Use the systemd-boot EFI boot loader.
+  # Waybar polls this helper for the tunnel's current state.
+  wgStatus = pkgs.writeShellScriptBin "wg-status" ''
+    if ${pkgs.systemd}/bin/systemctl is-active --quiet wg-quick-homelab.service; then
+      printf '%s\n' '{"text":"","class":"connected","tooltip":"WireGuard: connected"}'
+    else
+      printf '%s\n' '{"text":"","class":"disconnected","tooltip":"WireGuard: disconnected"}'
+    fi
+  '';
+in
+{
+  imports = [ ./hardware-configuration.nix ];
+
+  # GRUB EFI bootloader, sharing the existing EFI system partition.
   boot.loader.efi.canTouchEfiVariables = true;
   boot.loader.efi.efiSysMountPoint = "/boot/efi";
   boot.loader.grub = {
@@ -22,21 +35,14 @@
   hardware.enableRedistributableFirmware = true;
   services.openssh.enable = true;
 
-  # networking.hostName = "nixos"; # Define your hostname.
-
-  # Configure network connections interactively with nmcli or nmtui.
   networking.networkmanager.enable = true;
 
-  # Users
   users.users.paper = {
     isNormalUser = true;
     extraGroups = [ "wheel" "networkmanager" "video" "wireshark" ];
-    packages = with pkgs; [
-      tree
-    ];
+    packages = with pkgs; [ tree ];
   };
 
-  # desktop
   programs.sway = {
     enable = true;
     wrapperFeatures.gtk = true;
@@ -51,25 +57,31 @@
   users.users.paper.shell = pkgs.fish;
 
   environment.systemPackages = with pkgs; [
-    # desktop and apps
     foot wmenu brightnessctl powertop librewolf kitty
     mako libnotify bitwarden-desktop polkit_gnome
     waybar networkmanagerapplet adwaita-icon-theme
-    # config and dev
     git gh wireguard-tools
-    # network tools
     traceroute nmap tcpdump iperf3 bind whois ethtool arp-scan
-    # update helpers (the scripts live in the repo)
     (writeShellScriptBin "config-update" (builtins.readFile ./sway/update.sh))
     (writeShellScriptBin "config-update-check" (builtins.readFile ./sway/update-check.sh))
     (writeShellScriptBin "config-update-status" (builtins.readFile ./sway/update-status.sh))
+    wgToggle
+    wgStatus
   ];
+
+  # Permit only this fixed helper to run without a password.
+  security.sudo.extraRules = [{
+    users = [ "paper" ];
+    commands = [{
+      command = "${wgToggle}/bin/wg-toggle";
+      options = [ "NOPASSWD" ];
+    }];
+  }];
 
   environment.etc."sway/config".source = ./sway/config;
   environment.etc."xdg/waybar/config.jsonc".source = ./waybar/config.jsonc;
   environment.etc."xdg/waybar/style.css".source = ./waybar/style.css;
 
-  # Tmp files - Librewolf
   systemd.tmpfiles.rules = [
     "d /home/paper/.librewolf 0700 paper users -"
     "L+ /home/paper/.librewolf/librewolf.overrides.cfg - - - - ${./librewolf.overrides.cfg}"
@@ -78,43 +90,34 @@
   programs.mtr.enable = true;
   programs.wireshark = {
     enable = true;
-    package = pkgs.wireshark-cli;   # tshark only, no Qt GUI
+    package = pkgs.wireshark-cli;
   };
 
-  security.polkit.enable =true;
+  security.polkit.enable = true;
   services.gnome.gnome-keyring.enable = true;
   security.pam.services.greetd.enableGnomeKeyring = true;
   environment.pathsToLink = [ "/libexec" ];
 
-
-  #howdy face unlock
   services.howdy = {
     enable = true;
-    control = "sufficient";   # face OR password
+    control = "sufficient";
     settings = {
       core.no_confirmation = true;
       video.device_path = "/dev/video2";
     };
   };
 
-  #wireguard config
+  # The private tunnel config stays outside this repository.
   networking.wg-quick.interfaces.homelab = {
-    configFile = "/etc/wireguard/homelab.conf";   # lives outside the repo
-    autostart = true;                            # connect only when needed
+    configFile = "/etc/wireguard/homelab.conf";
+    autostart = true;
   };
 
-  # Stop Linux from answering ARP for one interface's IP on the other, which
-  # confuses the router when Ethernet and Wi-Fi are on the same network.
   boot.kernel.sysctl = {
     "net.ipv4.conf.all.arp_ignore" = 1;
     "net.ipv4.conf.all.arp_announce" = 2;
   };
 
-  # Reverse-path filtering: "loose" accepts a packet if its source is reachable
-  # via ANY interface, instead of only the one it arrived on. Needed while
-  # Ethernet and Wi-Fi share a subnet, because replies can arrive on the "other"
-  # link and would be silently dropped. Slightly weaker anti-spoofing than the
-  # default, which is fine on a laptop behind a NAT router.
   networking.firewall.checkReversePath = "loose";
   networking.networkmanager.dispatcherScripts = [{
     type = "basic";
@@ -136,7 +139,6 @@
     '';
   }];
 
-  # power
   services.power-profiles-daemon.enable = false;
   services.thermald.enable = true;
   services.tlp = {
@@ -157,13 +159,9 @@
   };
   networking.networkmanager.wifi.powersave = true;
 
-  # keep it lean
   services.printing.enable = false;
   services.avahi.enable = false;
   documentation.enable = false;
 
-  # System Version
   system.stateVersion = "26.05";
-
 }
-

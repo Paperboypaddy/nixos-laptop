@@ -7,7 +7,7 @@
   "modules-left": ["sway/workspaces", "custom/browser", "custom/terminal", "custom/bitwarden"],
   "modules-center": ["clock"],
   // The Wi-Fi/network picker is the nm-applet icon, which shows up in the tray.
-  "modules-right": ["custom/updates", "battery", "tray"],
+  "modules-right": ["custom/updates", "custom/wireguard", "battery", "tray"],
 
   "sway/workspaces": { "disable-scroll": true, "format": "{name}" },
 
@@ -24,6 +24,16 @@
     "format": "{icon}",
     "format-icons": { "pending": "\uf019", "none": "" },
     "on-click": "kitty -e config-update"
+  },
+
+  // Green shield means connected; muted shield means disconnected.
+  // Click to toggle the homelab tunnel. Autostart remains enabled in NixOS.
+  "custom/wireguard": {
+    "exec": "wg-status",
+    "return-type": "json",
+    "interval": 5,
+    "format": "{text}",
+    "on-click": "sudo -n wg-toggle || notify-send 'WireGuard' 'Could not toggle the homelab tunnel'"
   },
 
   "battery": {

@@ -25,6 +25,7 @@ window#waybar {
 #battery,
 #tray,
 #custom-updates,
+#custom-wireguard,
 #custom-browser,
 #custom-terminal,
 #custom-bitwarden {
@@ -34,3 +35,5 @@ window#waybar {
 #battery.warning:not(.charging) { color: #f9e2af; }
 #battery.critical:not(.charging) { color: #f38ba8; }
 #custom-updates.pending { color: #a6e3a1; }
+#custom-wireguard.connected { color: #a6e3a1; }
+#custom-wireguard.disconnected { color: #6c7086; }
