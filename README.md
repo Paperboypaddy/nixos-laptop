@@ -157,3 +157,7 @@ The update workflow applies whatever configuration is present in the branch
 being tracked when you approve an update. Review changes before merging or
 pulling them, especially changes to `configuration.nix`, scripts, and system
 services.
+
+## Sway session restore
+
+On login, `sway-session` restores supported applications (foot, kitty, LibreWolf and Bitwarden), their workspaces, floating geometry and basic layout modes. LibreWolf uses its own previous-session restoration for tabs and windows. Snapshots are saved every 15 seconds while windows exist and before confirmed Super+Shift+E logout, in `~/.local/state/sway-session/session.json` (or `$XDG_STATE_HOME`). Run `sway-session save` to save manually. Delete that file while logged out to start fresh. Nested splits, exact tiled sizes, scratchpad windows, terminal processes and unsupported apps are not restored. Browser windows are matched in arrival order, not by tab identity. Existing browser preferences may override the new default; enable Open previous windows and tabs in LibreWolf if needed.
