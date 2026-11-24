@@ -7,14 +7,14 @@
   "modules-left": ["sway/workspaces", "custom/browser", "custom/terminal", "custom/bitwarden"],
   "modules-center": ["clock"],
   // The Wi-Fi/network picker is the nm-applet icon, which shows up in the tray.
-  "modules-right": ["custom/updates", "battery", "tray"],
+  "modules-right": ["custom/updates", "custom/wireguard", "battery", "tray"],
 
   "sway/workspaces": { "disable-scroll": true, "format": "{name}" },
 
   // Launcher icons. kitty starts your default shell (fish).
-  "custom/browser":   { "format": "\uf0ac", "tooltip": false, "on-click": "librewolf" },
-  "custom/terminal":  { "format": "\uf120", "tooltip": false, "on-click": "kitty" },
-  "custom/bitwarden": { "format": "\uf084", "tooltip": false, "on-click": "bitwarden-desktop" },
+  "custom/browser":   { "format": "\\uf0ac", "tooltip": false, "on-click": "librewolf" },
+  "custom/terminal":  { "format": "\\uf120", "tooltip": false, "on-click": "kitty" },
+  "custom/bitwarden": { "format": "\\uf084", "tooltip": false, "on-click": "bitwarden-desktop" },
 
   // Shows an icon only when the config repo has updates waiting.
   "custom/updates": {
@@ -22,17 +22,27 @@
     "return-type": "json",
     "interval": 300,
     "format": "{icon}",
-    "format-icons": { "pending": "\uf019", "none": "" },
+    "format-icons": { "pending": "\\uf019", "none": "" },
     "on-click": "kitty -e config-update"
+  },
+
+  // Green shield means connected; muted shield means disconnected.
+  // Click to toggle the homelab tunnel. Autostart remains enabled in NixOS.
+  "custom/wireguard": {
+    "exec": "wg-status",
+    "return-type": "json",
+    "interval": 5,
+    "format": "{text}",
+    "on-click": "sudo -n wg-toggle || notify-send 'WireGuard' 'Could not toggle the homelab tunnel'"
   },
 
   "battery": {
     "interval": 30,
     "states": { "warning": 30, "critical": 15 },
     "format": "{icon} {capacity}%",
-    "format-charging": "\uf0e7 {capacity}%",
-    "format-full": "\uf240 {capacity}%",
-    "format-icons": ["\uf244", "\uf243", "\uf242", "\uf241", "\uf240"]
+    "format-charging": "\\uf0e7 {capacity}%",
+    "format-full": "\\uf240 {capacity}%",
+    "format-icons": ["\\uf244", "\\uf243", "\\uf242", "\\uf241", "\\uf240"]
   },
 
   "clock": { "interval": 30, "format": "{:%a %b %d  %H:%M}" },
