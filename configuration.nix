@@ -1,6 +1,9 @@
 { config, lib, pkgs, ... }:
 
 let
+  powerProfile = pkgs.writeShellScriptBin "laptop-power-profile" ''
+    exec ${pkgs.python3}/bin/python3 ${./sway/power-profile.py} "$@"
+  '';
   # This helper can only toggle the homelab WireGuard systemd unit.
   wgToggle = pkgs.writeShellScriptBin "wg-toggle" ''
     unit="wg-quick-homelab.service"
@@ -97,7 +100,7 @@ EOF
         chmod +x "$out/bin/waybar-controls"
       '';
     })
-    power-profiles-daemon
+    powerProfile
     wgToggle
     wgStatus
   ];
@@ -106,6 +109,9 @@ EOF
   security.sudo.extraRules = [{
     users = [ "paper" ];
     commands = [{
+      command = "${powerProfile}/bin/laptop-power-profile";
+      options = [ "NOPASSWD" ];
+    } {
       command = "${wgToggle}/bin/wg-toggle";
       options = [ "NOPASSWD" ];
     }];
@@ -194,10 +200,34 @@ EOF
     '';
   }];
 
-  # Use native desktop power profiles instead of conflicting TLP CPU limits.
-  services.power-profiles-daemon.enable = true;
+  services.power-profiles-daemon.enable = false;
   services.thermald.enable = true;
-  services.tlp.enable = false;
+  services.tlp = {
+    enable = true;
+    settings = {
+      PCIE_ASPM_ON_BAT = "powersupersave";
+      USB_AUTOSUSPEND = 1;
+      RUNTIME_PM_ON_BAT = "auto";
+    };
+  };
+  systemd.services.laptop-power = {
+    description = "Apply selected Intel CPU power profile";
+    after = [ "tlp.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${powerProfile}/bin/laptop-power-profile reconcile";
+      StateDirectory = "laptop-power";
+      StateDirectoryMode = "0755";
+    };
+  };
+  systemd.timers.laptop-power = {
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "5s";
+      OnUnitActiveSec = "10s";
+      AccuracySec = "1s";
+    };
+  };
   networking.networkmanager.wifi.powersave = true;
 
   services.printing.enable = false;
