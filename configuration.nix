@@ -113,6 +113,8 @@ EOF
     package = pkgs.wireshark-cli;
   };
 
+  # Graphical administrative prompts use password authentication, not Howdy.
+  security.pam.services.polkit-1.rules.auth.howdy.enable = lib.mkForce false;
   security.polkit.enable = true;
   security.polkit.extraConfig = ''
     polkit.addAdminRule(function(action, subject) {
