@@ -4,6 +4,14 @@ gi.require_version("GtkLayerShell", "0.1")
 from gi.repository import Gtk, Gdk, GLib, GtkLayerShell
 import sys, subprocess, pathlib, threading, os, socket
 import cairo
+import time
+
+PROFILES = [("ultra-saver", "Ultra saver — 700 MHz · 3 W"), ("efficiency", "Efficiency — dynamic turbo · 5 W"), ("balanced", "Balanced — dynamic turbo · 12 W"), ("performance", "Performance — full turbo · 28 W")]
+
+def read(path):
+    try: return pathlib.Path(path).read_text().strip()
+    except OSError: return None
+
 
 mode = sys.argv[1] if len(sys.argv) > 1 else "power"
 if mode not in ("power", "wireguard"): sys.exit(2)
@@ -33,6 +41,7 @@ class Panel(Gtk.Window):
         super().__init__()
         self.mode = mode
         self.busy = False
+        self.sample = None
         self.set_decorated(False)
         self.set_default_size(340, 180)
         GtkLayerShell.init_for_window(self)
@@ -99,9 +108,9 @@ class Panel(Gtk.Window):
             self.box.pack_start(self.button, False, False, 0)
             self.buttons.append(self.button)
         else:
-            for name, desc in [("power-saver","Power saver — maximum battery life"),("balanced","Balanced — everyday use"),("performance","Performance — heavy workloads")]:
+            for name, desc in PROFILES:
                 button = Gtk.Button(label=desc)
-                button.connect("clicked", lambda _, p=name: self.change("powerprofilesctl", "set", p))
+                button.connect("clicked", lambda _, p=name: self.change("sudo", "-n", "/run/current-system/sw/bin/laptop-power-profile", p))
                 self.box.pack_start(button, False, False, 0)
                 self.buttons.append(button)
         self.error = Gtk.Label(xalign=0)
@@ -120,16 +129,37 @@ class Panel(Gtk.Window):
                 self.status.set_text("Homelab tunnel · "+("Connected (service active)" if active else result.stdout.strip() or "Unknown"))
                 self.button.set_label("Disconnect" if active else "Connect")
             else:
-                result = command("powerprofilesctl", "get")
-                profile = result.stdout.strip()
+                profile = read("/var/lib/laptop-power/profile") or "ultra-saver"
                 batteries = list(pathlib.Path("/sys/class/power_supply").glob("BAT*"))
                 info = ""
                 if batteries:
                     bat = batteries[0]
                     info = (bat/"capacity").read_text().strip()+"% · "+(bat/"status").read_text().strip()+"\n"
-                self.status.set_text(info+"Current profile: "+(profile or "Unavailable"))
-                for button, name in zip(self.buttons, ("power-saver","balanced","performance")):
-                    button.set_sensitive(profile != name)
+                rapl = pathlib.Path("/sys/class/powercap/intel-rapl:0")
+                limit = read(rapl/"constraint_0_power_limit_uw")
+                energy = read(rapl/"energy_uj")
+                watts = "unavailable"
+                if energy is not None:
+                    now = time.monotonic()
+                    value = int(energy)
+                    if self.sample:
+                        previous, stamp = self.sample
+                        delta = value - previous
+                        if delta < 0:
+                            delta += int(read(rapl/"max_energy_range_uj") or 0)
+                        if delta >= 0 and now > stamp:
+                            watts = f"{delta / (now-stamp) / 1e6:.1f} W"
+                    self.sample = (value, now)
+                freqs = [read(p) for p in pathlib.Path("/sys/devices/system/cpu/cpufreq").glob("policy*/scaling_cur_freq")]
+                freqs = [int(x) for x in freqs if x]
+                freq = f"{max(freqs)/1e6:.2f} GHz" if freqs else "unavailable"
+                temps = [read(p/"temp") for p in pathlib.Path("/sys/class/thermal").glob("thermal_zone*") if read(p/"type") == "x86_pkg_temp"]
+                temp = f"{int(temps[0])/1000:.0f}°C" if temps and temps[0] else "unavailable"
+                budget = f"{int(limit)/1e6:g} W" if limit else "unavailable"
+                self.status.set_text(info+"Selected: "+profile+"\nCPU: "+freq+" · "+temp+"\nPackage: "+watts+" · PL1: "+budget)
+                for button, (name, desc) in zip(self.buttons, PROFILES):
+                    button.set_label(("✓ " if profile == name else "")+desc)
+                    button.set_sensitive(True)
         except Exception as e: self.error.set_text(str(e))
         return True
 
