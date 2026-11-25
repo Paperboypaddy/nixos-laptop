@@ -42,6 +42,8 @@ class Panel(Gtk.Window):
         self.mode = mode
         self.busy = False
         self.sample = None
+        self.refreshing = False
+        self.generation = 0
         self.set_decorated(False)
         self.set_default_size(340, 180)
         GtkLayerShell.init_for_window(self)
@@ -89,6 +91,7 @@ class Panel(Gtk.Window):
         return False
 
     def render(self):
+        self.generation += 1
         for child in self.box.get_children(): self.box.remove(child)
         header = Gtk.Box(spacing=8)
         title = Gtk.Label(xalign=0)
@@ -118,16 +121,23 @@ class Panel(Gtk.Window):
         self.box.pack_start(self.error, False, False, 0)
         self.backdrop.show_all()
         self.show_all()
+        for button in self.buttons: button.set_sensitive(not self.busy)
         self.refresh()
 
     def refresh(self):
-        if self.busy or not self.get_visible(): return True
+        if self.busy or self.refreshing or not self.get_visible(): return True
+        self.refreshing = True
+        target, generation = self.mode, self.generation
+        threading.Thread(target=self.collect, args=(target, generation), daemon=True).start()
+        return True
+
+    def collect(self, target, generation):
         try:
-            if self.mode == "wireguard":
+            if target == "wireguard":
                 result = command("systemctl", "is-active", "wg-quick-homelab.service")
                 active = result.stdout.strip() == "active"
-                self.status.set_text("Homelab tunnel · "+("Connected (service active)" if active else result.stdout.strip() or "Unknown"))
-                self.button.set_label("Disconnect" if active else "Connect")
+                status = "Homelab tunnel · "+("Connected (service active)" if active else result.stdout.strip() or "Unknown")
+                labels = ["Disconnect" if active else "Connect"]
             else:
                 profile = read("/var/lib/laptop-power/profile") or "ultra-saver"
                 batteries = list(pathlib.Path("/sys/class/power_supply").glob("BAT*"))
@@ -164,16 +174,29 @@ class Panel(Gtk.Window):
                 temps = [read(p/"temp") for p in pathlib.Path("/sys/class/thermal").glob("thermal_zone*") if read(p/"type") == "x86_pkg_temp"]
                 temp = f"{int(temps[0])/1000:.0f}°C" if temps and temps[0] else "unavailable"
                 budget = f"{int(limit)/1e6:g} W" if limit else "unavailable"
-                self.status.set_text(info+"Selected: "+profile+"\nCPU: "+freq+" · "+temp+"\nPackage: "+watts+" · PL1: "+budget)
-                for button, (name, desc) in zip(self.buttons, PROFILES):
-                    button.set_label(("✓ " if profile == name else "")+desc)
-                    button.set_sensitive(True)
-        except Exception as e: self.error.set_text(str(e))
-        return True
+                status = info+"Selected: "+profile+"\nCPU: "+freq+" · "+temp+"\nPackage: "+watts+" · PL1: "+budget
+                labels = [("✓ " if profile == name else "")+desc for name, desc in PROFILES]
+            GLib.idle_add(self.refresh_done, generation, status, labels, "")
+        except Exception as e:
+            GLib.idle_add(self.refresh_done, generation, "", [], str(e))
+
+    def refresh_done(self, generation, status, labels, error):
+        self.refreshing = False
+        if generation != self.generation:
+            self.refresh()
+        elif not self.busy and self.get_visible():
+            if error:
+                self.error.set_text(error)
+            else:
+                self.status.set_text(status)
+                for button, label in zip(self.buttons, labels):
+                    if button.get_label() != label: button.set_label(label)
+        return False
 
     def change(self, *args):
         if self.busy: return
         self.busy = True
+        self.generation += 1
         self.error.set_text("Applying…")
         for button in self.buttons: button.set_sensitive(False)
         def worker():
