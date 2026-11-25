@@ -95,6 +95,7 @@ EOF
         mkdir -p "$out/bin"
         cat > "$out/bin/waybar-controls" <<'EOF'
 #!${pkgs.runtimeShell}
+export LAPTOP_POWER_HELPER=${powerProfile}/bin/laptop-power-profile
 exec ${pkgs.python3.withPackages (ps: [ ps.pygobject3 ps.pycairo ])}/bin/python3 ${./sway/controls-ui.py} "$@"
 EOF
         chmod +x "$out/bin/waybar-controls"
@@ -106,7 +107,7 @@ EOF
   ];
 
   # Permit only this fixed helper to run without a password.
-  security.sudo.extraRules = [{
+  security.sudo.extraRules = lib.mkAfter [{
     users = [ "paper" ];
     commands = [{
       command = "${powerProfile}/bin/laptop-power-profile";
