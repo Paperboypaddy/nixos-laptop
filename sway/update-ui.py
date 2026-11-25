@@ -1,16 +1,25 @@
 import gi
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib, Pango
+gi.require_version("GtkLayerShell", "0.1")
+from gi.repository import Gtk, GLib, Pango, GtkLayerShell
 Gtk.Settings.get_default().set_property("gtk-application-prefer-dark-theme", True)
-import subprocess, threading, pathlib, os, json, shlex, fcntl
+import subprocess, threading, pathlib, os, json, shlex, fcntl, signal
 
 repo = pathlib.Path.home() / "nixos-config"
 lock = (pathlib.Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / ("config-update-%d.lock" % os.getuid())).open("a")
 try:
     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
 except BlockingIOError:
-    subprocess.run(["swaymsg", '[title="^NixOS Update Manager$"] kill'], capture_output=True)
+    try:
+        lock.seek(0)
+        os.kill(int(lock.read()), signal.SIGUSR1)
+    except (OSError, ValueError):
+        pass
     raise SystemExit(0)
+lock.seek(0)
+lock.truncate()
+lock.write(str(os.getpid()))
+lock.flush()
 
 def run(*args):
     return subprocess.check_output(args, cwd=repo, text=True, stderr=subprocess.STDOUT).strip()
@@ -18,6 +27,13 @@ def run(*args):
 class Manager(Gtk.Window):
     def __init__(self):
         super().__init__(title="NixOS Update Manager")
+        GtkLayerShell.init_for_window(self)
+        GtkLayerShell.set_layer(self, GtkLayerShell.Layer.TOP)
+        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.TOP, True)
+        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.RIGHT, True)
+        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.TOP, 8)
+        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.RIGHT, 10)
+        GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.ON_DEMAND)
         self.set_default_size(440, 420)
         self.set_decorated(False)
         self.set_resizable(True)
@@ -59,38 +75,12 @@ class Manager(Gtk.Window):
         scroll.add(self.log)
         box.pack_start(scroll, True, True, 0)
         self.show_all()
-        self.connect("map-event", self.position)
-        GLib.timeout_add(350, self.position)
         self.refresh()
 
     def keypress(self, widget, event):
         if event.keyval == 65307 and not self.busy:
             self.close()
             return True
-        return False
-
-    def position(self, *_):
-        try:
-            outputs = json.loads(run("swaymsg", "-t", "get_outputs"))
-            output = next((o for o in outputs if o.get("focused")), None)
-            if output is None:
-                workspaces = json.loads(run("swaymsg", "-t", "get_workspaces"))
-                focused = next(w for w in workspaces if w.get("focused"))
-                output = next(o for o in outputs if o["name"] == focused["output"])
-            rect = output["rect"]
-            tree = json.loads(run("swaymsg", "-t", "get_tree"))
-            def find(n):
-                if n.get("name") == "NixOS Update Manager" and n.get("type") in ("con", "floating_con"):
-                    return n
-                for child in n.get("nodes", []) + n.get("floating_nodes", []):
-                    found = find(child)
-                    if found: return found
-            node = find(tree)
-            if not node: return False
-            width = node["rect"]["width"]
-            run("swaymsg", '[title="^NixOS Update Manager$"] move absolute position %d px %d px' % (max(rect["x"], rect["x"] + rect["width"] - width - 10), rect["y"] + 36))
-        except Exception as e:
-            self.append("Panel positioning: " + str(e))
         return False
 
     def append(self, line):
@@ -149,7 +139,6 @@ class Manager(Gtk.Window):
         for ident, label in targets: self.targets.append(ident, label)
         self.targets.set_active(0)
         self.status.set_text(status)
-        GLib.timeout_add(150, self.position)
         return False
 
     def confirm(self, message):
@@ -196,5 +185,12 @@ class Manager(Gtk.Window):
             self.build()
         self.task(work)
 
-Manager()
+manager = Manager()
+def toggle():
+    if manager.get_visible():
+        manager.hide()
+    else:
+        manager.show_all()
+    return True
+GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1, toggle)
 Gtk.main()
