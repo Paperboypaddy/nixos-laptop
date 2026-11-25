@@ -1,7 +1,7 @@
 import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("GtkLayerShell", "0.1")
-from gi.repository import Gtk, GLib, Pango, GtkLayerShell
+from gi.repository import Gtk, GLib, Pango, GtkLayerShell, Gdk
 Gtk.Settings.get_default().set_property("gtk-application-prefer-dark-theme", True)
 import subprocess, threading, pathlib, os, json, shlex, fcntl, signal
 
@@ -28,7 +28,7 @@ class Manager(Gtk.Window):
     def __init__(self):
         super().__init__(title="NixOS Update Manager")
         GtkLayerShell.init_for_window(self)
-        GtkLayerShell.set_layer(self, GtkLayerShell.Layer.TOP)
+        GtkLayerShell.set_layer(self, GtkLayerShell.Layer.OVERLAY)
         GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.TOP, True)
         GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.RIGHT, True)
         GtkLayerShell.set_margin(self, GtkLayerShell.Edge.TOP, 8)
@@ -41,7 +41,19 @@ class Manager(Gtk.Window):
         self.busy = False
         self.dialog_open = False
         self.connect("delete-event", self.dismiss)
-        self.connect("focus-out-event", self.focus_lost)
+        self.backdrop = Gtk.Window()
+        self.backdrop.set_decorated(False)
+        self.backdrop.set_app_paintable(True)
+        self.backdrop.set_visual(self.backdrop.get_screen().get_rgba_visual())
+        GtkLayerShell.init_for_window(self.backdrop)
+        GtkLayerShell.set_layer(self.backdrop, GtkLayerShell.Layer.TOP)
+        for edge in (GtkLayerShell.Edge.TOP, GtkLayerShell.Edge.BOTTOM, GtkLayerShell.Edge.LEFT, GtkLayerShell.Edge.RIGHT):
+            GtkLayerShell.set_anchor(self.backdrop, edge, True)
+        self.backdrop.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
+        self.backdrop.connect("draw", self.clear_backdrop)
+        self.backdrop.connect("button-press-event", self.dismiss)
+        self.connect("hide", lambda *_: self.backdrop.hide())
+        self.connect("show", lambda *_: self.backdrop.show_all())
         self.connect("destroy", Gtk.main_quit)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, margin=12)
         self.add(box)
@@ -87,17 +99,16 @@ class Manager(Gtk.Window):
         self.refresh()
 
     def dismiss(self, *_):
-        self.hide()
+        if not self.dialog_open:
+            self.hide()
         return True
 
-    def focus_lost(self, *_):
-        GLib.timeout_add(180, self.check_focus)
-        return False
-
-    def check_focus(self):
-        if not self.is_active() and not self.dialog_open and not self.targets.get_property("popup-shown"):
-            self.hide()
-        return False
+    def clear_backdrop(self, widget, cr):
+        import cairo
+        cr.set_operator(cairo.OPERATOR_SOURCE)
+        cr.set_source_rgba(0, 0, 0, 0)
+        cr.paint()
+        return True
 
     def pulse(self):
         if self.busy: self.progress.pulse()
