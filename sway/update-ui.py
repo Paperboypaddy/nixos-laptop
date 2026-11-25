@@ -16,28 +16,36 @@ def run(*args):
 class Manager(Gtk.Window):
     def __init__(self):
         super().__init__(title="NixOS Update Manager")
-        self.set_default_size(850, 650)
+        self.set_default_size(440, 420)
+        self.set_decorated(False)
+        self.set_resizable(False)
+        self.connect("key-press-event", self.keypress)
         self.busy = False
         self.connect("delete-event", lambda *_: self.busy)
         self.connect("destroy", Gtk.main_quit)
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, margin=18)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, margin=12)
         self.add(box)
         heading = Gtk.Label()
         heading.set_markup("<span size='xx-large' weight='bold'>System updates</span>")
         heading.set_xalign(0)
-        box.pack_start(heading, False, False, 0)
+        header = Gtk.Box(spacing=8)
+        header.pack_start(heading, True, True, 0)
+        close = Gtk.Button(label="×")
+        close.connect("clicked", lambda *_: self.close())
+        header.pack_end(close, False, False, 0)
+        box.pack_start(header, False, False, 0)
         self.status = Gtk.Label(label="Loading repository…", xalign=0)
         self.status.set_line_wrap(True)
         box.pack_start(self.status, False, False, 0)
         self.targets = Gtk.ComboBoxText()
         box.pack_start(self.targets, False, False, 0)
-        buttons = Gtk.Box(spacing=8)
+        buttons = Gtk.Grid(column_spacing=6, row_spacing=6, column_homogeneous=True)
         box.pack_start(buttons, False, False, 0)
         self.controls = [self.targets]
-        for label, action in [("Refresh", self.refresh), ("Update current", lambda: self.apply(False)), ("Switch & apply", lambda: self.apply(True)), ("Rebuild checkout", self.rebuild)]:
+        for index, (label, action) in enumerate([("Refresh", self.refresh), ("Update current", lambda: self.apply(False)), ("Switch & apply", lambda: self.apply(True)), ("Rebuild checkout", self.rebuild)]):
             button = Gtk.Button(label=label)
             button.connect("clicked", lambda _, fn=action: fn())
-            buttons.pack_start(button, False, False, 0)
+            buttons.attach(button, index % 2, index // 2, 1, 1)
             self.controls.append(button)
         self.log = Gtk.TextView(editable=False, monospace=True, cursor_visible=False)
         self.log.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
@@ -45,7 +53,26 @@ class Manager(Gtk.Window):
         scroll.add(self.log)
         box.pack_start(scroll, True, True, 0)
         self.show_all()
+        self.connect("map-event", self.position)
+        GLib.timeout_add(150, self.position)
         self.refresh()
+
+    def keypress(self, widget, event):
+        if event.keyval == 65307 and not self.busy:
+            self.close()
+            return True
+        return False
+
+    def position(self, *_):
+        try:
+            outputs = json.loads(run("swaymsg", "-t", "get_outputs"))
+            output = next(o for o in outputs if o.get("focused"))
+            rect = output["rect"]
+            width, _ = self.get_size()
+            run("swaymsg", '[title="^NixOS Update Manager$"] move position %d %d' % (rect["x"] + rect["width"] - width - 10, rect["y"] + 36))
+        except Exception:
+            pass
+        return False
 
     def append(self, line):
         buf = self.log.get_buffer()
