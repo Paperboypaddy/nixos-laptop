@@ -236,7 +236,7 @@ input type:touchpad tap enabled
 exec /run/current-system/sw/libexec/polkit-gnome-authentication-agent-1
 exec mako
 exec config-update-check
-bindsym $mod+Shift+u exec foot -e config-update
+bindsym $mod+Shift+u exec config-update
 exec nm-applet --indicator
 bar {
     swaybar_command waybar
