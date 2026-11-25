@@ -27,16 +27,17 @@
   },
 
   // Green shield means connected; muted shield means disconnected.
-  // Click to toggle the homelab tunnel. Autostart remains enabled in NixOS.
+  // Click to open tunnel controls. Autostart remains enabled in NixOS.
   "custom/wireguard": {
     "exec": "wg-status",
     "return-type": "json",
     "interval": 5,
     "format": "{text}",
-    "on-click": "sudo -n wg-toggle || notify-send 'WireGuard' 'Could not toggle the homelab tunnel'"
+    "on-click": "waybar-controls wireguard"
   },
 
   "battery": {
+    "on-click": "waybar-controls power",
     "interval": 30,
     "states": { "warning": 30, "critical": 15 },
     "format": "{icon} {capacity}%",
