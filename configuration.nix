@@ -114,6 +114,15 @@ EOF
   };
 
   security.polkit.enable = true;
+  security.polkit.extraConfig = ''
+    polkit.addAdminRule(function(action, subject) {
+      if (action.id == "org.freedesktop.policykit.exec" &&
+          subject.user == "paper" && subject.local && subject.active &&
+          action.lookup("program") == "/run/current-system/sw/bin/nixos-rebuild") {
+        return ["unix-user:paper"];
+      }
+    });
+  '';
   services.gnome.gnome-keyring.enable = true;
   security.pam.services.greetd.enableGnomeKeyring = true;
   environment.pathsToLink = [ "/libexec" ];
