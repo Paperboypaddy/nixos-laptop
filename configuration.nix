@@ -65,6 +65,9 @@ in
     (writeShellScriptBin "config-update" (builtins.readFile ./sway/update.sh))
     (writeShellScriptBin "config-update-check" (builtins.readFile ./sway/update-check.sh))
     (writeShellScriptBin "config-update-status" (builtins.readFile ./sway/update-status.sh))
+    (writeShellScriptBin "sway-session" ''
+      exec ${pkgs.python3}/bin/python3 ${./sway/session.py} "$@"
+    '')
     wgToggle
     wgStatus
   ];
@@ -83,6 +86,9 @@ in
   environment.etc."xdg/waybar/style.css".source = ./waybar/style.css;
 
   systemd.tmpfiles.rules = [
+    "d /home/paper/.config/librewolf 0700 paper users -"
+    "d /home/paper/.config/librewolf/librewolf 0700 paper users -"
+    "L+ /home/paper/.config/librewolf/librewolf/librewolf.overrides.cfg - - - - ${./librewolf.overrides.cfg}"
     "d /home/paper/.librewolf 0700 paper users -"
     "L+ /home/paper/.librewolf/librewolf.overrides.cfg - - - - ${./librewolf.overrides.cfg}"
   ];
