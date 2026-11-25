@@ -86,6 +86,9 @@ in
   environment.etc."xdg/waybar/style.css".source = ./waybar/style.css;
 
   systemd.tmpfiles.rules = [
+    "d /home/paper/.config/librewolf 0700 paper users -"
+    "d /home/paper/.config/librewolf/librewolf 0700 paper users -"
+    "L+ /home/paper/.config/librewolf/librewolf/librewolf.overrides.cfg - - - - ${./librewolf.overrides.cfg}"
     "d /home/paper/.librewolf 0700 paper users -"
     "L+ /home/paper/.librewolf/librewolf.overrides.cfg - - - - ${./librewolf.overrides.cfg}"
   ];
