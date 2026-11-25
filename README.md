@@ -32,7 +32,8 @@ references directly from the checkout.
 ## What's configured
 
 - **Boot:** GRUB on EFI, reusing the existing Windows EFI partition at
-  `/boot/efi`. NixOS lives on its own ext4 partition.
+  `/boot/efi`. NixOS lives on its own ext4 partition. Windows 11 is
+  available directly from the GRUB boot menu.
 - **Desktop:** Sway, started through greetd/tuigreet. foot terminal, wmenu
   launcher, mako notifications, and Waybar. The internal display is scaled
   to 1.12.
@@ -193,9 +194,6 @@ For a rollback, select an earlier generation from the GRUB menu or run
 
 ## Known issues / notes
 
-- GRUB's os-prober may not list Windows. If that happens, Windows can still
-  be selected from the firmware boot menu; a manual GRUB chainload entry is
-  another option.
 - The Bitwarden browser extension is not currently configured for desktop-app
   biometric integration.
 
