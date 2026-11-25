@@ -110,7 +110,7 @@ class Panel(Gtk.Window):
         else:
             for name, desc in PROFILES:
                 button = Gtk.Button(label=desc)
-                button.connect("clicked", lambda _, p=name: self.change("sudo", "-n", "/run/current-system/sw/bin/laptop-power-profile", p))
+                button.connect("clicked", lambda _, p=name: self.change("sudo", "-n", os.environ["LAPTOP_POWER_HELPER"], p))
                 self.box.pack_start(button, False, False, 0)
                 self.buttons.append(button)
         self.error = Gtk.Label(xalign=0)
@@ -140,7 +140,7 @@ class Panel(Gtk.Window):
                 energy = read(rapl/"energy_uj")
                 maximum_energy = read(rapl/"max_energy_range_uj")
                 if energy is None or limit is None:
-                    result = command("sudo", "-n", "/run/current-system/sw/bin/laptop-power-profile", "telemetry")
+                    result = command("sudo", "-n", os.environ["LAPTOP_POWER_HELPER"], "telemetry")
                     if result.returncode == 0:
                         data = json.loads(result.stdout)
                         energy = data["energy_uj"]
