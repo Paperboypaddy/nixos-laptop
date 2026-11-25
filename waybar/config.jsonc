@@ -23,7 +23,7 @@
     "interval": 300,
     "format": "{icon}",
     "format-icons": { "pending": "\uf019", "none": "" },
-    "on-click": "kitty -e config-update"
+    "on-click": "config-update"
   },
 
   // Green shield means connected; muted shield means disconnected.
