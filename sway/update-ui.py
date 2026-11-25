@@ -1,6 +1,7 @@
 import gi
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib
+from gi.repository import Gtk, GLib, Pango
+Gtk.Settings.get_default().set_property("gtk-application-prefer-dark-theme", True)
 import subprocess, threading, pathlib, os, json, shlex, fcntl
 
 repo = pathlib.Path.home() / "nixos-config"
@@ -8,7 +9,8 @@ lock = (pathlib.Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / ("config-updat
 try:
     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
 except BlockingIOError:
-    raise SystemExit("Updater already running")
+    subprocess.run(["swaymsg", '[title="^NixOS Update Manager$"] kill'], capture_output=True)
+    raise SystemExit(0)
 
 def run(*args):
     return subprocess.check_output(args, cwd=repo, text=True, stderr=subprocess.STDOUT).strip()
@@ -18,7 +20,7 @@ class Manager(Gtk.Window):
         super().__init__(title="NixOS Update Manager")
         self.set_default_size(440, 420)
         self.set_decorated(False)
-        self.set_resizable(False)
+        self.set_resizable(True)
         self.connect("key-press-event", self.keypress)
         self.busy = False
         self.connect("delete-event", lambda *_: self.busy)
@@ -38,6 +40,10 @@ class Manager(Gtk.Window):
         self.status.set_line_wrap(True)
         box.pack_start(self.status, False, False, 0)
         self.targets = Gtk.ComboBoxText()
+        for renderer in self.targets.get_cells():
+            renderer.set_property("ellipsize", Pango.EllipsizeMode.END)
+            renderer.set_property("width-chars", 24)
+            renderer.set_property("max-width-chars", 28)
         box.pack_start(self.targets, False, False, 0)
         buttons = Gtk.Grid(column_spacing=6, row_spacing=6, column_homogeneous=True)
         box.pack_start(buttons, False, False, 0)
@@ -54,7 +60,7 @@ class Manager(Gtk.Window):
         box.pack_start(scroll, True, True, 0)
         self.show_all()
         self.connect("map-event", self.position)
-        GLib.timeout_add(150, self.position)
+        GLib.timeout_add(350, self.position)
         self.refresh()
 
     def keypress(self, widget, event):
@@ -68,8 +74,17 @@ class Manager(Gtk.Window):
             outputs = json.loads(run("swaymsg", "-t", "get_outputs"))
             output = next(o for o in outputs if o.get("focused"))
             rect = output["rect"]
-            width, _ = self.get_size()
-            run("swaymsg", '[title="^NixOS Update Manager$"] move position %d %d' % (rect["x"] + rect["width"] - width - 10, rect["y"] + 36))
+            tree = json.loads(run("swaymsg", "-t", "get_tree"))
+            def find(n):
+                if n.get("name") == "NixOS Update Manager" and n.get("type") == "con":
+                    return n
+                for child in n.get("nodes", []) + n.get("floating_nodes", []):
+                    found = find(child)
+                    if found: return found
+            node = find(tree)
+            if not node: return False
+            width = node["rect"]["width"]
+            run("swaymsg", '[title="^NixOS Update Manager$"] move position %d %d' % (max(rect["x"], rect["x"] + rect["width"] - width - 10), rect["y"] + 36))
         except Exception:
             pass
         return False
@@ -111,7 +126,7 @@ class Manager(Gtk.Window):
             branch = run("git", "branch", "--show-current") or "(detached)"
             head = run("git", "rev-parse", "--short", "HEAD")
             refs = run("git", "for-each-ref", "--format=%(refname:short)", "refs/remotes/origin").splitlines()
-            targets = [(x, x) for x in refs if x != "origin/HEAD"]
+            targets = [(x, x) for x in refs if x.startswith("origin/") and x != "origin/HEAD"]
             try:
                 prs = json.loads(run("gh", "pr", "list", "--state", "open", "--limit", "100", "--json", "number,title"))
                 targets += [("pr:"+str(p["number"]), "PR #"+str(p["number"])+" — "+p["title"]) for p in prs]
@@ -130,6 +145,7 @@ class Manager(Gtk.Window):
         for ident, label in targets: self.targets.append(ident, label)
         self.targets.set_active(0)
         self.status.set_text(status)
+        GLib.timeout_add(150, self.position)
         return False
 
     def confirm(self, message):
