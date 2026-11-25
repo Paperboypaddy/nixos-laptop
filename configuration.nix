@@ -130,6 +130,12 @@ EOF
     "L+ /home/paper/.librewolf/librewolf.overrides.cfg - - - - ${./librewolf.overrides.cfg}"
   ];
 
+  # Steam gaming client and Proton runtime.
+  nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
+    "steam" "steam-original" "steam-unwrapped" "steam-run"
+  ];
+  programs.steam.enable = true;
+
   programs.mtr.enable = true;
   programs.wireshark = {
     enable = true;
