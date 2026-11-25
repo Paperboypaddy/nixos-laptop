@@ -37,3 +37,5 @@ window#waybar {
 #custom-updates.pending { color: #a6e3a1; }
 #custom-wireguard.connected { color: #a6e3a1; }
 #custom-wireguard.disconnected { color: #6c7086; }
+
+#custom-updates.none { color: #6c7086; }

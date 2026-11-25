@@ -62,7 +62,21 @@ in
     waybar networkmanagerapplet adwaita-icon-theme
     git gh wireguard-tools
     traceroute nmap tcpdump iperf3 bind whois ethtool arp-scan
-    (writeShellScriptBin "config-update" (builtins.readFile ./sway/update.sh))
+    (stdenvNoCC.mkDerivation {
+      pname = "config-update";
+      version = "1.0";
+      dontUnpack = true;
+      nativeBuildInputs = [ wrapGAppsHook3 gobject-introspection ];
+      buildInputs = [ gtk3 gtk-layer-shell ];
+      installPhase = ''
+        mkdir -p "$out/bin"
+        cat > "$out/bin/config-update" <<'EOF'
+#!${pkgs.runtimeShell}
+exec ${pkgs.python3.withPackages (ps: [ ps.pygobject3 ])}/bin/python3 ${./sway/update-ui.py} "$@"
+EOF
+        chmod +x "$out/bin/config-update"
+      '';
+    })
     (writeShellScriptBin "config-update-check" (builtins.readFile ./sway/update-check.sh))
     (writeShellScriptBin "config-update-status" (builtins.readFile ./sway/update-status.sh))
     (writeShellScriptBin "sway-session" ''
@@ -99,7 +113,18 @@ in
     package = pkgs.wireshark-cli;
   };
 
+  # Graphical administrative prompts use password authentication, not Howdy.
+  security.pam.services.polkit-1.rules.auth.howdy.enable = lib.mkForce false;
   security.polkit.enable = true;
+  security.polkit.extraConfig = ''
+    polkit.addAdminRule(function(action, subject) {
+      if (action.id == "org.freedesktop.policykit.exec" &&
+          subject.user == "paper" && subject.local && subject.active &&
+          action.lookup("program") == "/run/current-system/sw/bin/nixos-rebuild") {
+        return ["unix-user:paper"];
+      }
+    });
+  '';
   services.gnome.gnome-keyring.enable = true;
   security.pam.services.greetd.enableGnomeKeyring = true;
   environment.pathsToLink = [ "/libexec" ];

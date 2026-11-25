@@ -16,14 +16,14 @@
   "custom/terminal":  { "format": "\uf120", "tooltip": false, "on-click": "kitty" },
   "custom/bitwarden": { "format": "\uf084", "tooltip": false, "on-click": "bitwarden-desktop" },
 
-  // Shows an icon only when the config repo has updates waiting.
+  // Permanent update manager icon; highlighted when updates are pending.
   "custom/updates": {
     "exec": "config-update-status",
     "return-type": "json",
-    "interval": 300,
+    "interval": 30,
     "format": "{icon}",
-    "format-icons": { "pending": "\uf019", "none": "" },
-    "on-click": "kitty -e config-update"
+    "format-icons": { "pending": "\uf019", "none": "\uf019" },
+    "on-click": "config-update"
   },
 
   // Green shield means connected; muted shield means disconnected.
