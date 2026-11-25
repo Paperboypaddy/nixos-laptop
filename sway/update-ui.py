@@ -72,11 +72,15 @@ class Manager(Gtk.Window):
     def position(self, *_):
         try:
             outputs = json.loads(run("swaymsg", "-t", "get_outputs"))
-            output = next(o for o in outputs if o.get("focused"))
+            output = next((o for o in outputs if o.get("focused")), None)
+            if output is None:
+                workspaces = json.loads(run("swaymsg", "-t", "get_workspaces"))
+                focused = next(w for w in workspaces if w.get("focused"))
+                output = next(o for o in outputs if o["name"] == focused["output"])
             rect = output["rect"]
             tree = json.loads(run("swaymsg", "-t", "get_tree"))
             def find(n):
-                if n.get("name") == "NixOS Update Manager" and n.get("type") == "con":
+                if n.get("name") == "NixOS Update Manager" and n.get("type") in ("con", "floating_con"):
                     return n
                 for child in n.get("nodes", []) + n.get("floating_nodes", []):
                     found = find(child)
@@ -84,9 +88,9 @@ class Manager(Gtk.Window):
             node = find(tree)
             if not node: return False
             width = node["rect"]["width"]
-            run("swaymsg", '[title="^NixOS Update Manager$"] move position %d %d' % (max(rect["x"], rect["x"] + rect["width"] - width - 10), rect["y"] + 36))
-        except Exception:
-            pass
+            run("swaymsg", '[title="^NixOS Update Manager$"] move absolute position %d px %d px' % (max(rect["x"], rect["x"] + rect["width"] - width - 10), rect["y"] + 36))
+        except Exception as e:
+            self.append("Panel positioning: " + str(e))
         return False
 
     def append(self, line):
