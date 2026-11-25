@@ -67,7 +67,7 @@ in
       version = "1.0";
       dontUnpack = true;
       nativeBuildInputs = [ wrapGAppsHook3 gobject-introspection ];
-      buildInputs = [ gtk3 ];
+      buildInputs = [ gtk3 gtk-layer-shell ];
       installPhase = ''
         mkdir -p "$out/bin"
         cat > "$out/bin/config-update" <<'EOF'
