@@ -27,7 +27,8 @@ def apply(name):
     put(cpu/"intel_pstate/no_turbo", 1-turbo)
     for policy in sorted((cpu/"cpufreq").glob("policy*")):
         put(policy/"scaling_min_freq", 400000)
-        put(policy/"scaling_max_freq", min(maximum, int((policy/"cpuinfo_max_freq").read_text())))
+        ceiling = min(maximum, int((policy/"cpuinfo_max_freq").read_text()))
+        put(policy/"scaling_max_freq", ceiling)
         put(policy/"scaling_governor", governor)
         put(policy/"energy_performance_preference", epp)
 def reconcile(name=None):
@@ -51,6 +52,9 @@ if __name__ == "__main__":
     if os.geteuid() != 0: sys.exit("Root required")
     if len(sys.argv) != 2: sys.exit("Expected a profile or reconcile")
     arg = sys.argv[1]
-    if arg == "reconcile": reconcile()
+    if arg == "telemetry":
+        import json
+        print(json.dumps({key: (rapl/key).read_text().strip() for key in ("energy_uj", "max_energy_range_uj", "constraint_0_power_limit_uw")}))
+    elif arg == "reconcile": reconcile()
     elif arg in profiles: reconcile(arg)
     else: sys.exit("Invalid profile")
