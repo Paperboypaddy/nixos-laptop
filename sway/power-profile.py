@@ -24,12 +24,18 @@ def apply(name):
         raise RuntimeError("Unexpected RAPL constraint layout")
     put(rapl/"constraint_0_power_limit_uw", pl1*1000000)
     put(rapl/"constraint_1_power_limit_uw", pl2*1000000)
-    put(cpu/"intel_pstate/no_turbo", 1-turbo)
+    pstate = cpu/"intel_pstate"
+    # Clear global percentage restrictions before changing per-policy limits.
+    # The driver rounds zero up to the hardware minimum.
+    if int((pstate/"min_perf_pct").read_text()) > 10:
+        (pstate/"min_perf_pct").write_text("0")
+    put(pstate/"max_perf_pct", 100)
+    put(pstate/"no_turbo", 1-turbo)
     for policy in sorted((cpu/"cpufreq").glob("policy*")):
+        put(policy/"scaling_governor", governor)
         put(policy/"scaling_min_freq", 400000)
         ceiling = min(maximum, int((policy/"cpuinfo_max_freq").read_text()))
         put(policy/"scaling_max_freq", ceiling)
-        put(policy/"scaling_governor", governor)
         put(policy/"energy_performance_preference", epp)
 def reconcile(name=None):
     with open("/run/laptop-power.lock", "a") as lock:
@@ -55,6 +61,7 @@ if __name__ == "__main__":
     if arg == "telemetry":
         import json
         print(json.dumps({key: (rapl/key).read_text().strip() for key in ("energy_uj", "max_energy_range_uj", "constraint_0_power_limit_uw")}))
-    elif arg == "reconcile": reconcile()
-    elif arg in profiles: reconcile(arg)
+    elif arg == "reconcile" or arg in profiles:
+        try: reconcile(None if arg == "reconcile" else arg)
+        except Exception as e: sys.exit(str(e))
     else: sys.exit("Invalid profile")
