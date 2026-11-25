@@ -4,7 +4,7 @@ gi.require_version("GtkLayerShell", "0.1")
 from gi.repository import Gtk, Gdk, GLib, GtkLayerShell
 import sys, subprocess, pathlib, threading, os, socket
 import cairo
-import time
+import time, json
 
 PROFILES = [("ultra-saver", "Ultra saver — 700 MHz · 3 W"), ("efficiency", "Efficiency — dynamic turbo · 5 W"), ("balanced", "Balanced — dynamic turbo · 12 W"), ("performance", "Performance — full turbo · 28 W")]
 
@@ -138,6 +138,14 @@ class Panel(Gtk.Window):
                 rapl = pathlib.Path("/sys/class/powercap/intel-rapl:0")
                 limit = read(rapl/"constraint_0_power_limit_uw")
                 energy = read(rapl/"energy_uj")
+                maximum_energy = read(rapl/"max_energy_range_uj")
+                if energy is None or limit is None:
+                    result = command("sudo", "-n", "/run/current-system/sw/bin/laptop-power-profile", "telemetry")
+                    if result.returncode == 0:
+                        data = json.loads(result.stdout)
+                        energy = data["energy_uj"]
+                        maximum_energy = data["max_energy_range_uj"]
+                        limit = data["constraint_0_power_limit_uw"]
                 watts = "unavailable"
                 if energy is not None:
                     now = time.monotonic()
@@ -146,7 +154,7 @@ class Panel(Gtk.Window):
                         previous, stamp = self.sample
                         delta = value - previous
                         if delta < 0:
-                            delta += int(read(rapl/"max_energy_range_uj") or 0)
+                            delta += int(maximum_energy or 0)
                         if delta >= 0 and now > stamp:
                             watts = f"{delta / (now-stamp) / 1e6:.1f} W"
                     self.sample = (value, now)
