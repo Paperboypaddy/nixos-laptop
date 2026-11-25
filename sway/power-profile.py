@@ -12,10 +12,16 @@ profiles = {
 }
 def put(path, value):
     value = str(value)
-    if path.read_text().strip() != value:
-        path.write_text(value)
-    if path.read_text().strip() != value:
-        raise RuntimeError(f"{path.name}: requested {value}, got {path.read_text().strip()}")
+    for attempt in range(20):
+        actual = path.read_text().strip()
+        if actual == value:
+            return
+        if attempt % 5 == 0:
+            path.write_text(value)
+        time.sleep(0.05)
+    actual = path.read_text().strip()
+    if actual != value:
+        raise RuntimeError(f"{path.name}: requested {value}, got {actual}")
 def selected():
     return state.read_text().strip() if state.exists() else "ultra-saver"
 def apply(name):
@@ -31,6 +37,7 @@ def apply(name):
         (pstate/"min_perf_pct").write_text("0")
     put(pstate/"max_perf_pct", 100)
     put(pstate/"no_turbo", 1-turbo)
+    time.sleep(0.15) if name != selected() else None
     for policy in sorted((cpu/"cpufreq").glob("policy*")):
         put(policy/"scaling_governor", governor)
         put(policy/"scaling_min_freq", 400000)
