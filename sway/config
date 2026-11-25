@@ -244,3 +244,6 @@ bar {
 
 # Restore once per login.
 exec sway-session
+
+# Compact floating update panel, positioned by the updater.
+for_window [title="^NixOS Update Manager$"] floating enable, border none
