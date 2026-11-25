@@ -1,6 +1,9 @@
 { config, lib, pkgs, ... }:
 
 let
+  powerProfile = pkgs.writeShellScriptBin "laptop-power-profile" ''
+    exec ${pkgs.python3}/bin/python3 ${./sway/power-profile.py} "$@"
+  '';
   # This helper can only toggle the homelab WireGuard systemd unit.
   wgToggle = pkgs.writeShellScriptBin "wg-toggle" ''
     unit="wg-quick-homelab.service"
@@ -82,14 +85,34 @@ EOF
     (writeShellScriptBin "sway-session" ''
       exec ${pkgs.python3}/bin/python3 ${./sway/session.py} "$@"
     '')
+    (stdenvNoCC.mkDerivation {
+      pname = "waybar-controls";
+      version = "1.0";
+      dontUnpack = true;
+      nativeBuildInputs = [ wrapGAppsHook3 gobject-introspection ];
+      buildInputs = [ gtk3 gtk-layer-shell ];
+      installPhase = ''
+        mkdir -p "$out/bin"
+        cat > "$out/bin/waybar-controls" <<'EOF'
+#!${pkgs.runtimeShell}
+export LAPTOP_POWER_HELPER=${powerProfile}/bin/laptop-power-profile
+exec ${pkgs.python3.withPackages (ps: [ ps.pygobject3 ps.pycairo ])}/bin/python3 ${./sway/controls-ui.py} "$@"
+EOF
+        chmod +x "$out/bin/waybar-controls"
+      '';
+    })
+    powerProfile
     wgToggle
     wgStatus
   ];
 
   # Permit only this fixed helper to run without a password.
-  security.sudo.extraRules = [{
+  security.sudo.extraRules = lib.mkAfter [{
     users = [ "paper" ];
     commands = [{
+      command = "${powerProfile}/bin/laptop-power-profile";
+      options = [ "NOPASSWD" ];
+    } {
       command = "${wgToggle}/bin/wg-toggle";
       options = [ "NOPASSWD" ];
     }];
@@ -117,6 +140,14 @@ EOF
   security.pam.services.polkit-1.rules.auth.howdy.enable = lib.mkForce false;
   security.polkit.enable = true;
   security.polkit.extraConfig = ''
+    polkit.addRule(function(action, subject) {
+      if (subject.user == "paper" && subject.local && subject.active &&
+          action.id == "org.freedesktop.systemd1.manage-units" &&
+          action.lookup("unit") == "wg-quick-homelab.service" &&
+          ["start", "stop"].indexOf(action.lookup("verb")) >= 0) {
+        return polkit.Result.YES;
+      }
+    });
     polkit.addAdminRule(function(action, subject) {
       if (action.id == "org.freedesktop.policykit.exec" &&
           subject.user == "paper" && subject.local && subject.active &&
@@ -175,17 +206,27 @@ EOF
   services.tlp = {
     enable = true;
     settings = {
-      CPU_SCALING_GOVERNOR_ON_BAT = "powersave";
-      CPU_ENERGY_PERF_POLICY_ON_BAT = "power";
-      CPU_BOOST_ON_BAT = 0;
-      CPU_SCALING_MIN_FREQ_ON_BAT = 400000;
-      CPU_SCALING_MAX_FREQ_ON_BAT = 700000;
-      CPU_SCALING_GOVERNOR_ON_AC = "powersave";
-      CPU_ENERGY_PERF_POLICY_ON_AC = "balance_performance";
-      CPU_BOOST_ON_AC = 1;
       PCIE_ASPM_ON_BAT = "powersupersave";
       USB_AUTOSUSPEND = 1;
       RUNTIME_PM_ON_BAT = "auto";
+    };
+  };
+  systemd.services.laptop-power = {
+    description = "Apply selected Intel CPU power profile";
+    after = [ "tlp.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${powerProfile}/bin/laptop-power-profile reconcile";
+      StateDirectory = "laptop-power";
+      StateDirectoryMode = "0755";
+    };
+  };
+  systemd.timers.laptop-power = {
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "5s";
+      OnUnitActiveSec = "10s";
+      AccuracySec = "1s";
     };
   };
   networking.networkmanager.wifi.powersave = true;

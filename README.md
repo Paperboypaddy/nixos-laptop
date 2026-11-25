@@ -37,9 +37,7 @@ references directly from the checkout.
 - **Desktop:** Sway, started through greetd/tuigreet. foot terminal, wmenu
   launcher, mako notifications, and Waybar. The internal display is scaled
   to 1.12.
-- **Power:** TLP plus thermald. On battery: powersave governor, turbo disabled,
-  and CPU frequency capped at about 700 MHz. On AC: boost is enabled and the
-  power policy is more performance-oriented.
+- **Power:** TLP for peripheral savings, thermald, and custom Intel RAPL CPU profiles. Ultra saver defaults to the original 700 MHz cap.
 - **Browser:** LibreWolf. The tracked `librewolf.overrides.cfg` is linked into
   `~/.config/librewolf/librewolf/` and the legacy `~/.librewolf/` directory
   by systemd-tmpfiles rules. Previous browser windows and tabs are restored
@@ -57,9 +55,7 @@ references directly from the checkout.
   `/etc/wireguard/homelab.conf` and remains configured to autostart. The
   private WireGuard configuration stays outside this repository. Waybar shows
   a shield immediately to the left of the battery: green means connected,
-  muted means disconnected. Hover for status; click to toggle the tunnel.
-  The toggle uses a narrowly scoped passwordless sudo rule for the
-  `wg-toggle` helper, which can only start or stop this one tunnel.
+  muted means disconnected. Hover for status; click to open the WireGuard dropdown. A narrowly scoped Polkit rule permits the active local paper session to start or stop only the homelab unit.
 
 ## Keybindings
 
@@ -207,3 +203,7 @@ The update workflow applies whatever configuration is present in the branch
 being tracked when you approve an update. Review changes before merging or
 pulling them, especially changes to `configuration.nix`, scripts, and system
 services.
+
+## Waybar controls
+
+Click the shield or battery indicator to open a dark Wayland layer-shell panel. Click outside, press Escape, or click the same icon to dismiss. The WireGuard panel shows systemd service state (not peer handshake health) and provides Connect/Disconnect. Autostart remains enabled. The battery panel displays charge, charging state and the current power profile. Profiles are managed by laptop-power-profile. Ultra saver: 700 MHz, 3/3 W PL1/PL2, no turbo; Efficiency: 4.4 GHz, 5/12 W; Balanced: 4.4 GHz, 12/25 W; Performance: 4.4 GHz, 28/60 W. The latter three allow turbo. Selection persists in /var/lib/laptop-power/profile and a systemd timer reconciles settings every 10 seconds, including after AC changes. Actual power depends on firmware and workload. The panel displays sampled package watts, highest sampled core frequency and package temperature where available. Check journalctl -u laptop-power for errors. TLP remains enabled for peripheral savings; power-profiles-daemon is disabled. Thermald remains enabled. The first outside click is consumed by the dismissal layer.
