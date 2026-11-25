@@ -62,7 +62,21 @@ in
     waybar networkmanagerapplet adwaita-icon-theme
     git gh wireguard-tools
     traceroute nmap tcpdump iperf3 bind whois ethtool arp-scan
-    (writeShellScriptBin "config-update" (builtins.readFile ./sway/update.sh))
+    (stdenvNoCC.mkDerivation {
+      pname = "config-update";
+      version = "1.0";
+      dontUnpack = true;
+      nativeBuildInputs = [ wrapGAppsHook3 gobject-introspection ];
+      buildInputs = [ gtk3 ];
+      installPhase = ''
+        mkdir -p "$out/bin"
+        cat > "$out/bin/config-update" <<'EOF'
+#!${pkgs.runtimeShell}
+exec ${pkgs.python3.withPackages (ps: [ ps.pygobject3 ])}/bin/python3 ${./sway/update-ui.py} "$@"
+EOF
+        chmod +x "$out/bin/config-update"
+      '';
+    })
     (writeShellScriptBin "config-update-check" (builtins.readFile ./sway/update-check.sh))
     (writeShellScriptBin "config-update-status" (builtins.readFile ./sway/update-status.sh))
     (writeShellScriptBin "sway-session" ''
